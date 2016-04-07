@@ -557,6 +557,7 @@
 
 # Other
 #/sys/devices/platform/mtk_disp_mgr.0/rgb                        u:object_r:display_color_sysfs:s0
+/sys/devices/platform/mtk_disp_mgr.0/rgb                        u:object_r:livedisplay_sysfs:s0
 #/sys/kernel/charge_levels/quick_charge_enable                   u:object_r:fast_charge_sysfs:s0
 #/sys/kernel/charge_levels/charge_level_ac                       u:object_r:fast_charge_sysfs:s0
 #/sys/kernel/charge_levels/charge_level_usb u:object_r:fast_charge_sysfs:s0
