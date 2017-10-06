@@ -183,6 +183,7 @@ TARGET_NEEDS_TEXT_RELOCATIONS := true
 
 # Camera
 TARGET_HAS_LEGACY_CAMERA_HAL1 := true
+TARGET_SPECIFIC_CAMERA_PARAMETER_LIBRARY := libcamera_parameters_mtk
 
 # Charger
 BACKLIGHT_PATH := /sys/class/leds/lcd-backlight/brightness
