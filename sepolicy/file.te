@@ -227,6 +227,7 @@ type sysfs_devinfo, fs_type, sysfs_type;
 type sysfs_ccci, fs_type, sysfs_type;
 type perf_control_sysfs, fs_type, sysfs_type;
 type sysfs_ddr_type, fs_type, sysfs_type;
+type gesture, fs_type, sysfs_type; 
 
 # fuelgauge
 type fuelgauge_data_file, file_type, data_file_type;

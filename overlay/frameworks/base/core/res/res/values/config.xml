@@ -216,7 +216,7 @@
 
     <bool name="config_supportDoubleTapWake">true</bool>
     <bool name="config_networkSamplingWakesDevice">false</bool>
-     <bool name="config_wifi_batched_scan_supported">false</bool>
+    <bool name="config_wifi_batched_scan_supported">false</bool>
  <!-- Is the notification LED intrusive? Used to decide if there should be a disable option -->
     <bool name="config_intrusiveNotificationLed">true</bool>
 

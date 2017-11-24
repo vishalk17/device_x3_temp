@@ -199,6 +199,10 @@ on post-fs-data
     chown system system /sys/devices/soc/soc:touch@/smartwake_active
     chown system system /sys/devices/soc/soc:touch@/wakeup_gesture
 
+    # DT2W Gesture
+    chmod 0660 /sys/devices/bus.2/11009000.I2C2/i2c-2/2-004b/input/input4/wake_gesture
+    chown system system /sys/devices/bus.2/11009000.I2C2/i2c-2/2-004b/input/input4/wake_gesture
+
 # -----------------------
 # Add by MTK
     # md32 boot
