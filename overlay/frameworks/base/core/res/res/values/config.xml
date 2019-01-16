@@ -249,4 +249,6 @@
  Otherwise, the buttons will light up whenever the user interacts with the device. -->
  <!--bool name="config_buttonLightOnKeypressOnly">true</bool-->
 
+    <!-- True if the firmware supports connected MAC randomization -->
+    <bool name="config_wifi_connected_mac_randomization_supported">false</bool>
 </resources>
