@@ -168,6 +168,10 @@ PRODUCT_COPY_FILES += \
 	$(DEVICE_PATH)/configs/media/media_profiles_V1_0.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_V1_0.xml \
 	$(DEVICE_PATH)/configs/mtk_clear_motion.cfg:$(TARGET_COPY_OUT_VENDOR)/etc/mtk_clear_motion.cfg
 
+PRODUCT_PROPERTY_OVERRIDES += \
+    debug.stagefright.omx_default_rank.sw-audio=1 \
+    debug.stagefright.omx_default_rank=0
+
 # Modem controller / radio / Mtk Helpers
 PRODUCT_PACKAGES += \
         md_ctrl \
