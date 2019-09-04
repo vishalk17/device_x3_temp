@@ -139,6 +139,7 @@ WIFI_DRIVER_STATE_OFF := 0
 
 # Others
 BUILD_BROKEN_DUP_RULES := true
+TARGET_FLATTEN_APEX := true
 
 # Recovery
 ifeq ($(WITH_TWRP),true)
