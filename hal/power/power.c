@@ -15,6 +15,7 @@
  */
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -35,6 +36,7 @@
 
 static void power_init(struct power_module *module)
 {
+    ALOGI("MTK power HAL initing.");
 }
 
 static void power_set_interactive(struct power_module *module, int on)
@@ -77,9 +79,13 @@ static void power_hint(struct power_module *module, power_hint_t hint,
             break;
         case POWER_HINT_VSYNC:
         case POWER_HINT_INTERACTION:
+        case POWER_HINT_CPU_BOOST:
         case POWER_HINT_LAUNCH:
+        case POWER_HINT_SET_PROFILE:
         case POWER_HINT_VIDEO_ENCODE:
         case POWER_HINT_VIDEO_DECODE:
+        case POWER_HINT_SUSTAINED_PERFORMANCE:
+        case POWER_HINT_VR_MODE:
         break;
     default:
         break;
@@ -98,8 +104,38 @@ void set_feature(struct power_module *module, feature_t feature, int state)
 #endif
 }
 
+static int power_open(const hw_module_t* module, const char* name,
+                    hw_device_t** device)
+{
+    ALOGD("%s: enter; name=%s", __FUNCTION__, name);
+    int retval = 0; /* 0 is ok; -1 is error */
+
+    if (strcmp(name, POWER_HARDWARE_MODULE_ID) == 0) {
+        power_module_t *dev = (power_module_t *)calloc(1,
+                sizeof(power_module_t));
+
+        if (dev) {
+            /* Common hw_device_t fields */
+            dev->common.tag = HARDWARE_DEVICE_TAG;
+            dev->common.module_api_version = POWER_MODULE_API_VERSION_0_2;
+            dev->common.hal_api_version = HARDWARE_HAL_API_VERSION;
+
+            dev->init = power_init;
+            dev->powerHint = power_hint;
+
+            *device = (hw_device_t*)dev;
+        } else
+            retval = -ENOMEM;
+    } else {
+        retval = -EINVAL;
+    }
+
+    ALOGD("%s: exit %d", __FUNCTION__, retval);
+    return retval;
+}
+
 static struct hw_module_methods_t power_module_methods = {
-    .open = NULL,
+    .open = power_open,
 };
 
 struct power_module HAL_MODULE_INFO_SYM = {
@@ -115,6 +151,6 @@ struct power_module HAL_MODULE_INFO_SYM = {
 
     .init = power_init,
     .setInteractive = power_set_interactive,
-    .powerHint = power_hint,
     .setFeature = set_feature,
+    .powerHint = power_hint,
 };
