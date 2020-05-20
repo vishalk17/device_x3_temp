@@ -8,11 +8,11 @@ $(call inherit-product, vendor/leeco/x3/x3-vendor-blobs.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/product_launched_with_m.mk)
 
 # Enable updating of APEXes
-$(call inherit-product, $(SRC_TARGET_DIR)/product/updatable_apex.mk)
+#$(call inherit-product, $(SRC_TARGET_DIR)/product/updatable_apex.mk)
 
 # Setup dm-verity configs
-PRODUCT_SYSTEM_VERITY_PARTITION := /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system
-$(call inherit-product, build/target/product/verity.mk)
+#PRODUCT_SYSTEM_VERITY_PARTITION := /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system
+#$(call inherit-product, build/target/product/verity.mk)
 
 -include $(DEVICE_PATH)/hidl.mk
 
@@ -103,8 +103,8 @@ PRODUCT_PACKAGES += \
 	charger_res_images
 
 # Device settings
-#PRODUCT_PACKAGES += \
-#    DeviceSettings
+PRODUCT_PACKAGES += \
+    DeviceSettings
 
 # Display
 PRODUCT_PACKAGES += \
