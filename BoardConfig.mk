@@ -60,7 +60,7 @@ BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 # make_ext4fs requires numbers in dec format
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_SYSTEMIMAGE_PARTITION_SIZE := 2684354560
-#BOARD_CACHEIMAGE_PARTITION_SIZE := 444596224
+BOARD_CACHEIMAGE_PARTITION_SIZE := 444596224
 ifneq ($(ENABLED_VENDOR_PARTITION),true)
 BOARD_USERDATAIMAGE_PARTITION_SIZE := 27992260608
 else
@@ -72,16 +72,16 @@ BOARD_BOOTIMAGE_PARTITION_SIZE := 16777216
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 18777216
 BOARD_FLASH_BLOCK_SIZE := 4096
 
-#TARGET_USERIMAGES_USE_EXT4 := true
-#TARGET_USERIMAGES_USE_F2FS := true
+TARGET_USERIMAGES_USE_EXT4 := true
+TARGET_USERIMAGES_USE_F2FS := true
 
-BOARD_ROOT_EXTRA_FOLDERS := \
-    protect_f \
-    protect_s
+#BOARD_ROOT_EXTRA_FOLDERS := \
+#    protect_f \
+#    protect_s
 
 BOARD_ROOT_EXTRA_SYMLINKS := \
-    /mnt/vendor/protect_f:/protect_f \
-    /mnt/vendor/protect_s:/protect_s
+   /mnt/vendor/protect_f:/protect_f \
+   /mnt/vendor/protect_s:/protect_s
 
 # Display
 TARGET_SCREEN_HEIGHT := 1920

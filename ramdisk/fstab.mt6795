@@ -5,6 +5,9 @@
 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/protect1		/mnt/vendor/protect_f  ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc          	wait,check,formattable
 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/protect2		/mnt/vendor/protect_s  ext4	   noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc         	wait,check,formattable
 
+#/mnt/vendor/protect_f /protect_f none bind wait
+#/mnt/vendor/protect_s /protect_s none bind wait
+
 /dev/block/zram0                                                    none        swap    defaults                                                            zramsize=536870912,max_comp_streams=8
 
 /devices/mtk-msdc.0/11240000.MSDC1*									auto		auto	defaults															voldmanaged=sdcard1:auto,encryptable=userdata

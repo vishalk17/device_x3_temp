@@ -73,10 +73,10 @@ LOCAL_CFLAGS += -DCONFIG_FOR_SOURCE_PQ
 LOCAL_SRC_FILES := \
 	lib/IGuiExtService.cpp \
 	lib/GuiExtService.cpp \
-	lib/GuiExtClient.cpp \
-	lib/GuiExtClientProducer.cpp \
-	lib/GuiExtClientConsumer.cpp \
-	lib/GuiExtImpl.cpp
+	lib/GuiExtClient.cpp
+#	lib/GuiExtClientProducer.cpp \
+#	lib/GuiExtClientConsumer.cpp \
+#	lib/GuiExtImpl.cpp
 
 LOCAL_C_INCLUDES := \
 		$(LOCAL_PATH)/inc \

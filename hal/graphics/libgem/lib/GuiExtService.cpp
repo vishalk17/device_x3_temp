@@ -10,22 +10,16 @@
 #include <utils/SortedVector.h>
 #include <binder/PermissionCache.h>
 
-#include <android/native_window.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
 
 #include <ui/DisplayInfo.h>
 
-#ifdef MTK_AOSP_ENHANCEMENT
-#include <ui/mediatek/IDumpTunnel.h>
-#else
 #include <mediatek/IDumpTunnel.h>
-#endif
 
 #include <cutils/memory.h>
 
 #include "GuiExtService.h"
-#include "GuiExtImpl.h"
 
 namespace android {
 
@@ -39,60 +33,10 @@ GuiExtService::GuiExtService()
     : mNeedKickDump(false)
 {
     GUIEXT_LOGI("GuiExtService ctor");
-    mPool = new GuiExtPool();
 }
 
 GuiExtService::~GuiExtService()
 {
-}
-
-status_t GuiExtService::alloc(const sp<IBinder>& token, uint32_t gralloc_usage, uint32_t w, uint32_t h, uint32_t *poolId)
-{
-    GUIEXT_LOGV("alloc, gralloc_usage=%x, w=%d, h=%d", gralloc_usage, w, h);
-    status_t ret = mPool->alloc(token, gralloc_usage, w, h, poolId);
-    return ret;
-}
-
-status_t GuiExtService::free(uint32_t poolId)
-{
-    GUIEXT_LOGV("free, poolId=%d", poolId);
-    status_t ret = mPool->free(poolId);
-    return ret;
-}
-
-status_t GuiExtService::acquire(const sp<IBinder>& token, uint32_t poolId, uint32_t usage, uint32_t type, int *buf)
-{
-    GUIEXT_LOGV("acquire, poolId=%d, usage=%x, type=%d", poolId, usage, type);
-    status_t ret = mPool->acquire(token, poolId, usage, type, buf);
-    return ret;
-}
-
-status_t GuiExtService::request(uint32_t poolId, uint32_t usage, uint32_t type, int buf, sp<GraphicBuffer>* buffer)
-{
-    GUIEXT_LOGV("request, poolId=%d, usage=%x, type=%d, buf=%d", poolId, usage, type, buf);
-    status_t ret = mPool->request(poolId, usage, type, buf, buffer);
-    return ret;
-}
-
-status_t GuiExtService::release(uint32_t poolId, uint32_t usage, uint32_t type, int buf)
-{
-    GUIEXT_LOGV("release, poolId=%d, usage=%x, buf=%d, type=%d", poolId, usage, buf, type);
-    status_t ret = mPool->release(poolId, usage, type, buf);
-    return ret;
-}
-
-status_t GuiExtService::disconnect(uint32_t poolId, uint32_t usage, uint32_t type)
-{
-    GUIEXT_LOGV("disconnect, poolId=%d, usage=%x, type=%d", poolId, usage, type);
-    status_t ret = mPool->disconnect(poolId, usage, type);
-    return ret;
-}
-
-status_t GuiExtService::configDisplay(uint32_t type, bool enable, uint32_t w, uint32_t h, uint32_t bufNum)
-{
-    GUIEXT_LOGV("configDisplay, type=%d, enable=%d, w=%d, h=%d, bufNum=%d", type, enable, w, h, bufNum);
-    mPool->configDisplay(type, enable, w, h, bufNum);
-    return NO_ERROR;
 }
 
 static const String16 sDump("android.permission.DUMP");
@@ -122,9 +66,6 @@ status_t GuiExtService::dump(int fd, const Vector<String16>& args)
         result.appendFormat(
                 "GuiExtService[pid=%d] state:\n\n",
                 getpid());
-
-        // internal pools state
-        mPool->dump(result);
 
         if (locked) {
             mLock.unlock();
@@ -215,7 +156,6 @@ status_t GuiExtService::dump(int fd, const Vector<String16>& args)
                     tunnel->kickDump(result, "    ");
                 }
             }
-            result.append("--------------------------------------------------\n");
         } // Mutex::Autolock l(mDumpLock);
     }
     write(fd, result.string(), result.size());
@@ -298,5 +238,23 @@ void GuiExtService::parseArgs(const Vector<String16>& args)
             mNeedKickDump = true;
         }
     }
+}
+
+extern "C" void createGuiExtService()
+{
+#ifndef MTK_DO_NOT_USE_GUI_EXT
+    const sp<IServiceManager> sm = defaultServiceManager();
+    if (sm != NULL) {
+        sp<IBinder> binder = sm->checkService(String16(GuiExtService::getServiceName()));
+        if (binder != NULL) {
+            ALOGI("GuiExtService exists");
+        } else {
+            sp<GuiExtService> guiext = new GuiExtService();
+            sm->addService(String16(GuiExtService::getServiceName()), guiext, false);
+        }
+    } else {
+        ALOGW("Cannot find default ServiceManager");
+    }
+#endif
 }
 };
