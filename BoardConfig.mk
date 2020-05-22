@@ -41,7 +41,7 @@ MTK_HARDWARE := true
 TARGET_USES_64_BIT_BINDER := true
 TARGET_IS_64_BIT := true
 BOARD_KERNEL_CMDLINE := bootopt=64S3,32N2,64N2 androidboot.selinux=permissive loop.max_part=7
-#BOARD_KERNEL_CMDLINE += skip_initramfs rootwait ro init=/init root=/dev/dm-0 dm=\"system none ro,0 1 android-verity /dev/block/mmcblk0p21\"
+BOARD_KERNEL_CMDLINE += skip_initramfs rootwait ro init=/init root=/dev/dm-0 dm=\"system none ro,0 1 android-verity /dev/block/mmcblk0p21\"
 BOARD_KERNEL_BASE := 0x40078000
 BOARD_KERNEL_PAGESIZE := 2048
 BOARD_MKBOOTIMG_ARGS := \
@@ -127,7 +127,7 @@ TARGET_ENABLE_MEDIADRM_64 := true
 
 # HIDL Manifest & Compatibility_matrix
 DEVICE_MANIFEST_FILE := $(DEVICE_PATH)/configs/manifest.xml
-DEVICE_MATRIX_FILE := $(DEVICE_PATH)/configs/compatibility_matrix.xml
+#DEVICE_MATRIX_FILE := $(DEVICE_PATH)/configs/compatibility_matrix.xml
 
 # LightHAL
 TARGET_PROVIDES_LIBLIGHT := true
@@ -149,7 +149,7 @@ BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy
 SELINUX_IGNORE_NEVERALLOWS := true
 
 # System As Root
-#BOARD_BUILD_SYSTEM_ROOT_IMAGE := true
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := true
 
 # system.prop
 TARGET_SYSTEM_PROP := $(DEVICE_PATH)/system.prop
@@ -172,7 +172,7 @@ WIFI_HIDL_FEATURE_DISABLE_AP_MAC_RANDOMIZATION := true
 
 # Others / Apex
 BUILD_BROKEN_DUP_RULES := true
-#DEXPREOPT_GENERATE_APEX_IMAGE := true
+DEXPREOPT_GENERATE_APEX_IMAGE := true
 
 # Recovery
 ifeq ($(WITH_TWRP),true)
