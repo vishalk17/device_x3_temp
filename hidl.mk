@@ -1,7 +1,6 @@
 # Power
 PRODUCT_PACKAGES += \
-    android.hardware.power@1.0-impl \
-    android.hardware.power@1.0-service
+    android.hardware.power@1.0-impl
 
 # Wifi
 PRODUCT_PACKAGES += \
@@ -30,7 +29,8 @@ PRODUCT_PACKAGES += \
     android.hardware.graphics.allocator@2.0-impl \
     android.hardware.graphics.allocator@2.0-service \
     android.hardware.graphics.composer@2.1-impl \
-    android.hardware.graphics.mapper@2.0-impl
+    android.hardware.graphics.mapper@2.0-impl \
+    android.hardware.renderscript@1.0-impl
 
 # memtrack
 PRODUCT_PACKAGES += \
@@ -42,8 +42,8 @@ PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-impl-legacy
 
 # Configstore
-#PRODUCT_PACKAGES += \
-#    android.hardware.configstore@1.1-service
+PRODUCT_PACKAGES += \
+    android.hardware.configstore@1.1-service
 
 # Bluetooth HAL
 PRODUCT_PACKAGES += \
