@@ -257,10 +257,12 @@ PRODUCT_COPY_FILES += \
 
 ifneq ($(ENABLED_VENDOR_PARTITION),true)
 PRODUCT_COPY_FILES += \
-        $(DEVICE_PATH)/ramdisk/fstab.mt6795:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6795
+        $(DEVICE_PATH)/ramdisk/fstab.mt6795:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6795 \
+        $(DEVICE_PATH)/ramdisk/fstab.mt6795:$(TARGET_COPY_OUT_RAMDISK)/fstab.mt6795
 else
 PRODUCT_COPY_FILES += \
-       $(DEVICE_PATH)/ramdisk/fstab.vendor.mt6795:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6795
+       $(DEVICE_PATH)/ramdisk/fstab.vendor.mt6795:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.mt6795 \
+       $(DEVICE_PATH)/ramdisk/fstab.vendor.mt6795:$(TARGET_COPY_OUT_RAMDISK)/fstab.mt6795
 endif
 
 # OpenGL
