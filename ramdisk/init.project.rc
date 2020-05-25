@@ -1,8 +1,8 @@
 # MTK project .rc configure
 
-import /vendor/etc/init/hw/init.mt6795.usb.rc
-import /vendor/etc/init/hw/init.modem.rc
-import /vendor/etc/init/hw/init.trustonic.rc
+import /system/vendor/etc/init/hw/init.mt6795.usb.rc
+import /system/vendor/etc/init/hw/init.modem.rc
+import /system/vendor/etc/init/hw/init.trustonic.rc
 
 on init
     mkdir /mnt/media_rw/usbotg 0700 media_rw media_rw
@@ -169,13 +169,13 @@ service fuse_usbotg /system/bin/sdcard -u 1023 -g 1023 -w 1023 -d /mnt/media_rw/
 # Connectivity related services (Begin)
 #
 
-service wmt_loader /vendor/bin/wmt_loader
+service wmt_loader /system/vendor/bin/wmt_loader
 	class core
 	user root
 	group root
 	oneshot
 
-service 66xx_launcher /vendor/bin/6620_launcher -m 4 -p /vendor/etc/firmware/
+service 66xx_launcher /system/vendor/bin/6620_launcher -m 4 -p /system/vendor/etc/firmware/
     user system
     group system
 	class core
@@ -183,7 +183,7 @@ service 66xx_launcher /vendor/bin/6620_launcher -m 4 -p /vendor/etc/firmware/
 on property:service.wcn.coredump.mode=2
 start stp_dump
 
-service stp_dump /vendor/bin/stp_dump3
+service stp_dump /system/vendor/bin/stp_dump3
 	user root
 	group root
 	class core
@@ -198,12 +198,12 @@ on property:persist.sys.le_fast_chrg_enable=0
 # add by letv for reduced power rate when normal charge be selected end
 
 # goodix fingerprint begin
-service goodixfpd /system/bin/goodixfingerprintd
+service goodixfpd /system/vendor/bin/goodixfingerprintd
     class main
     user system
     group system
 
-service fingerprintd /system/bin/fingerprintd
+service fingerprintd /system/vendor/bin/fingerprintd
     class main
     user system
     group system

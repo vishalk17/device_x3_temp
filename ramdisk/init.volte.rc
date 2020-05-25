@@ -20,7 +20,7 @@ on property:ril.volte.imcb=1
 on property:ril.volte.imcb=0
     stop volte_imcb
 
-service volte_ua /system/bin/volte_ua
+service volte_ua /system/vendor/bin/volte_ua
     class core
     socket volte_ua stream 660 root system
     user root
@@ -28,7 +28,7 @@ service volte_ua /system/bin/volte_ua
     oneshot
     disabled
 
-service volte_stack /system/bin/volte_stack
+service volte_stack /system/vendor/bin/volte_stack
     class core
     socket volte_stack stream 660 root system
     user root
@@ -36,7 +36,7 @@ service volte_stack /system/bin/volte_stack
     oneshot
     disabled
 
-service volte_imcb /system/bin/volte_imcb
+service volte_imcb /system/vendor/bin/volte_imcb
     class core
     socket volte_imsa1 stream 660 root radio
     socket volte_imsa2 stream 660 root radio
