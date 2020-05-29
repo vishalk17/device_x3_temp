@@ -1,7 +1,7 @@
 #<src>                                              				<mnt_point>            <type>	        <mnt_flags and options>												<fs_mgr_flags>
-/dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system		/system                      ext4    ro													            	wait,recoveryonly
+/dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system		/system                      ext4    ro,barrier=0														            	wait,recoveryonly
 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/userdata		/data		           ext4    noatime,nosuid,nodev,noauto_da_alloc,errors=panic		         	wait,check,formattable,latemount,reservedsize=128M
-#/dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/cache		/cache		           ext4	   noatime,nosuid,nodev,noauto_da_alloc       			            	wait,check,formattable
+/dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/cache		/cache		           ext4	   noatime,nosuid,nodev,noauto_da_alloc       			            	wait,check,formattable
 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/protect1		/mnt/vendor/protect_f  ext4    noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc          	wait,check,formattable
 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/protect2		/mnt/vendor/protect_s  ext4	   noatime,nosuid,nodev,noauto_da_alloc,commit=1,nodelalloc         	wait,check,formattable
 
