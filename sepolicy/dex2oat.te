@@ -1,6 +1,8 @@
 # ==============================================
 # MTK Policy Rule
 # ==============================================
+type dex2oat, domain;
+type dex2oat_exec, exec_type, file_type;
 
 # Date : WK14.34
 # Operation : Migration
