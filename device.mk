@@ -316,9 +316,6 @@ PRODUCT_PACKAGES += \
 	libnl_2 \
 	com.android.future.usb.accessory
 
-PRODUCT_ENFORCE_RRO_TARGETS := \
-    framework-res
-
 # Power
 PRODUCT_PACKAGES += \
 	power.default \
