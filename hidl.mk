@@ -16,9 +16,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 #Audio HIDL
 PRODUCT_PACKAGES += \
-    android.hardware.audio@4.0-impl \
+    android.hardware.audio@5.0-impl \
     android.hardware.audio@2.0-service \
-    android.hardware.audio.effect@4.0-impl
+    android.hardware.audio.effect@5.0-impl
 
 #gralloc/graphics HAL/HW Composer
 PRODUCT_PACKAGES += \
@@ -36,6 +36,10 @@ PRODUCT_PACKAGES += \
 # Camera HAL
 PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-impl-legacy
+
+# Configstore
+PRODUCT_PACKAGES += \
+    android.hardware.configstore@1.1-service
 
 # Bluetooth HAL
 PRODUCT_PACKAGES += \
@@ -70,7 +74,7 @@ PRODUCT_PACKAGES += \
     android.hardware.light@2.0-service
 
 # LiveDisplay
-PRODUCT_PACKAGES += vendor.lineage.livedisplay@2.0-service-mediatek
+#PRODUCT_PACKAGES += vendor.lineage.livedisplay@2.0-service-mediatek
 
 # Sensors
 PRODUCT_PACKAGES += \
@@ -80,8 +84,8 @@ PRODUCT_PACKAGES += \
 # Drm
 PRODUCT_PACKAGES += \
     android.hardware.drm@1.0-impl \
-    android.hardware.drm@1.0-service \
-    android.hardware.drm@1.1-service.clearkey
+    android.hardware.drm@1.0-service
+#    android.hardware.drm@1.2-service.clearkey
 
 # Health
 PRODUCT_PACKAGES += \
