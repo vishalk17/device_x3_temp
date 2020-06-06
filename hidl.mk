@@ -74,7 +74,7 @@ PRODUCT_PACKAGES += \
     android.hardware.light@2.0-service
 
 # LiveDisplay
-PRODUCT_PACKAGES += vendor.lineage.livedisplay@2.0-service-mediatek
+#PRODUCT_PACKAGES += vendor.lineage.livedisplay@2.0-service-mediatek
 
 # Sensors
 PRODUCT_PACKAGES += \
@@ -84,8 +84,8 @@ PRODUCT_PACKAGES += \
 # Drm
 PRODUCT_PACKAGES += \
     android.hardware.drm@1.0-impl \
-    android.hardware.drm@1.0-service \
-    android.hardware.drm@1.2-service.clearkey
+    android.hardware.drm@1.0-service
+#    android.hardware.drm@1.2-service.clearkey
 
 # Health
 PRODUCT_PACKAGES += \
