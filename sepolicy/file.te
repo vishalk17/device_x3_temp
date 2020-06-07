@@ -255,5 +255,3 @@ type cw2015_data_file, file_type, data_file_type;
 #######
 type vold_socket, file_type;
 type netd_socket, file_type;
-
-type proc_bootprof, fs_type, proc_type;
