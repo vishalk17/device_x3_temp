@@ -157,6 +157,11 @@ WIFI_DRIVER_STATE_OFF := 0
 # Others
 BUILD_BROKEN_DUP_RULES := true
 TARGET_FLATTEN_APEX := true
+BOARD_ROOT_EXTRA_FOLDERS := \
+    protect_f \
+    protect_s \
+    metadata \
+    cache
 
 # Recovery
 ifeq ($(WITH_TWRP),true)
