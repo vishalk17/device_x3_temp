@@ -6,7 +6,7 @@ TARGET_SPECIFIC_HEADER_PATH := $(DEVICE_PATH)/include
 TARGET_BOARD_KERNEL_HEADERS := $(DEVICE_PATH)/kernel-headers
 
 # Enabled Vendor Partition
-ENABLED_VENDOR_PARTITION := false
+ENABLED_VENDOR_PARTITION := true
 
 # Vendor Path
 ifneq ($(ENABLED_VENDOR_PARTITION),true)
