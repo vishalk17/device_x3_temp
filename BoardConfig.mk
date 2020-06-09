@@ -151,6 +151,10 @@ BOARD_ROOT_EXTRA_FOLDERS := \
     protect_s \
     metadata
 
+#TARGET_FLATTEN_APEX := true
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := false
+TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/config.fs
+
 # Recovery
 ifeq ($(WITH_TWRP),true)
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/ramdisk/twrp.fstab
