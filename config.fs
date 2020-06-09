@@ -10,7 +10,7 @@ user: AID_SYSTEM
 group: AID_SYSTEM
 caps: 0
 
-[metadata/]
+[custom/]
 mode: 0775
 user: AID_SYSTEM
 group: AID_SYSTEM

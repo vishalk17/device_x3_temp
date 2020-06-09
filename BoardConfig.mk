@@ -149,7 +149,7 @@ BUILD_BROKEN_DUP_RULES := true
 BOARD_ROOT_EXTRA_FOLDERS := \
     protect_f \
     protect_s \
-    metadata
+    custom
 
 #TARGET_FLATTEN_APEX := true
 BOARD_BUILD_SYSTEM_ROOT_IMAGE := false
