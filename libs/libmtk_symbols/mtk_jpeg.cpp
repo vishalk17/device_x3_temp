@@ -19,4 +19,5 @@ void jpeg_finish_compress_MTK(){};
 void jpeg_write_raw_data_MTK(){};
 void jpeg_finish_decompress_MTK(){};
 void jpeg_mem_dest_MTK(){};
+void _ZN7android19GraphicBufferMapper4lockEPK13native_handlejRKNS_4RectEPPv(){};
 }
