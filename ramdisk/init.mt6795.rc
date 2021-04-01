@@ -531,7 +531,7 @@ on post-fs-data
     chmod 0660 /dev/mt-mdp
     chown system media /dev/mt-mdp
 
-    chmod 0660 /sys/bus/platform/drivers/mem_bw_ctrl/concurrency_scenario
+    chmod 0666 /sys/bus/platform/drivers/mem_bw_ctrl/concurrency_scenario
     chown media media /sys/bus/platform/drivers/mem_bw_ctrl/concurrency_scenario
 
     # SMI
