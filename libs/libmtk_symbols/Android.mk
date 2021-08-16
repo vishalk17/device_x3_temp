@@ -2,7 +2,6 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-	mtk_xlog.cpp \
 	mtk_gui.cpp \
 	MediatekHacks.cpp \
 	mtkaudio.cpp  \
