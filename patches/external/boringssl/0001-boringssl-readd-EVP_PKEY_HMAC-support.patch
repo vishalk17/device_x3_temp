@@ -1,0 +1,984 @@
+From ae8e2c0b7b9a2b4eece27e9c2b6dec8337df60e7 Mon Sep 17 00:00:00 2001
+From: vishalk17 <vishalkapadi95@gmail.com>
+Date: Sat, 21 Aug 2021 15:45:28 +0000
+Subject: [PATCH 1/1] boringssl: readd EVP_PKEY_HMAC support
+
+fixes- WVMExtractor: Failed to open libwvm.so: dlopen failed: cannot locate symbol "EVP_PKEY_new_mac_key" referenced by "/system/lib/libdrmmtkutil.so"...
+
+Revert "Remove EVP_PKEY_HMAC."
+
+This reverts commit 65ee9b7ce94872b8265f7a5e4a09a5929ed61d61.
+
+Change-Id: I42f430a3dedf6e532166389cffa6fd8ead7e18b4
+---
+ sources.mk                     |   2 +
+ src/crypto/digest/digest.c     |  20 ++-
+ src/crypto/digest/internal.h   |  17 ++-
+ src/crypto/evp/CMakeLists.txt  |   2 +
+ src/crypto/evp/digestsign.c    |  70 ++++++++---
+ src/crypto/evp/evp.c           |  31 ++++-
+ src/crypto/evp/evp_ctx.c       |   2 +-
+ src/crypto/evp/evp_test.cc     |  53 +++++++-
+ src/crypto/evp/internal.h      |  42 +++++--
+ src/crypto/evp/p_ec.c          |  18 +--
+ src/crypto/evp/p_hmac.c        | 223 +++++++++++++++++++++++++++++++++
+ src/crypto/evp/p_hmac_asn1.c   |  89 +++++++++++++
+ src/crypto/evp/p_rsa.c         |  18 +--
+ src/crypto/hmac/hmac_tests.txt |   3 +
+ src/include/openssl/digest.h   |   6 +
+ src/include/openssl/evp.h      |  11 ++
+ src/util/all_tests.json        |   1 +
+ 17 files changed, 560 insertions(+), 48 deletions(-)
+ create mode 100644 src/crypto/evp/p_hmac.c
+ create mode 100644 src/crypto/evp/p_hmac_asn1.c
+
+diff --git a/sources.mk b/sources.mk
+index de8ed770..9fb629d7 100644
+--- a/sources.mk
++++ b/sources.mk
+@@ -148,6 +148,8 @@ crypto_sources := \
+   src/crypto/evp/p_dsa_asn1.c\
+   src/crypto/evp/p_ec.c\
+   src/crypto/evp/p_ec_asn1.c\
++  src/crypto/evp/p_hmac.c\
++  src/crypto/evp/p_hmac_asn1.c\
+   src/crypto/evp/p_rsa.c\
+   src/crypto/evp/p_rsa_asn1.c\
+   src/crypto/evp/pbkdf.c\
+diff --git a/src/crypto/digest/digest.c b/src/crypto/digest/digest.c
+index eb71b073..4aabb34b 100644
+--- a/src/crypto/digest/digest.c
++++ b/src/crypto/digest/digest.c
+@@ -164,11 +164,12 @@ int EVP_MD_CTX_copy(EVP_MD_CTX *out, const EVP_MD_CTX *in) {
+ 
+ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *engine) {
+   if (ctx->digest != type) {
+-    if (ctx->digest && ctx->digest->ctx_size > 0) {
++    if (ctx->digest && ctx->digest->ctx_size) {
+       OPENSSL_free(ctx->md_data);
+     }
+     ctx->digest = type;
+-    if (type->ctx_size > 0) {
++    if (!(ctx->flags & EVP_MD_CTX_FLAG_NO_INIT) && type->ctx_size) {
++      ctx->update = type->update;
+       ctx->md_data = OPENSSL_malloc(type->ctx_size);
+       if (ctx->md_data == NULL) {
+         OPENSSL_PUT_ERROR(DIGEST, ERR_R_MALLOC_FAILURE);
+@@ -178,6 +179,15 @@ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *engine) {
+   }
+ 
+   assert(ctx->pctx == NULL || ctx->pctx_ops != NULL);
++  if (ctx->pctx_ops) {
++    if (!ctx->pctx_ops->begin_digest(ctx)) {
++      return 0;
++    }
++  }
++
++  if (ctx->flags & EVP_MD_CTX_FLAG_NO_INIT) {
++    return 1;
++  }
+ 
+   ctx->digest->init(ctx);
+   return 1;
+@@ -189,7 +199,7 @@ int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type) {
+ }
+ 
+ int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t len) {
+-  ctx->digest->update(ctx, data, len);
++  ctx->update(ctx, data, len);
+   return 1;
+ }
+ 
+@@ -243,6 +253,10 @@ int EVP_MD_CTX_type(const EVP_MD_CTX *ctx) {
+   return EVP_MD_type(EVP_MD_CTX_md(ctx));
+ }
+ 
++void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, uint32_t flags) {
++  ctx->flags |= flags;
++}
++
+ int EVP_add_digest(const EVP_MD *digest) {
+   return 1;
+ }
+diff --git a/src/crypto/digest/internal.h b/src/crypto/digest/internal.h
+index e3d812ad..1572fa82 100644
+--- a/src/crypto/digest/internal.h
++++ b/src/crypto/digest/internal.h
+@@ -92,7 +92,7 @@ struct env_md_st {
+ };
+ 
+ /* evp_md_pctx_ops contains function pointers to allow the |pctx| member of
+- * |EVP_MD_CTX| to be manipulated without breaking layering by calling EVP
++ * |EVP_MD_CTX| to be manipulated without breaking laying by calling EVP
+  * functions. */
+ struct evp_md_pctx_ops {
+   /* free is called when an |EVP_MD_CTX| is being freed and the |pctx| also
+@@ -102,8 +102,23 @@ struct evp_md_pctx_ops {
+   /* dup is called when an |EVP_MD_CTX| is copied and so the |pctx| also needs
+    * to be copied. */
+   EVP_PKEY_CTX* (*dup) (EVP_PKEY_CTX *pctx);
++
++  /* begin_digest is called when a new digest operation is started. It returns
++   * one on success and zero otherwise. */
++  int (*begin_digest) (EVP_MD_CTX *ctx);
+ };
+ 
++/* EVP_MD_CTX_set_flags ORs |flags| into the flags member of |ctx|. */
++OPENSSL_EXPORT void EVP_MD_CTX_set_flags(EVP_MD_CTX *ctx, uint32_t flags);
++
++/* EVP_MD_CTX_FLAG_NO_INIT causes the |EVP_MD|'s |init| function not to be
++ * called, the |update| member not to be copied from the |EVP_MD| in
++ * |EVP_DigestInit_ex| and for |md_data| not to be initialised.
++ *
++ * TODO(davidben): This is an implementation detail of |EVP_PKEY_HMAC| and can
++ * be removed when it is gone. */
++#define EVP_MD_CTX_FLAG_NO_INIT 1
++
+ 
+ #if defined(__cplusplus)
+ }  /* extern C */
+diff --git a/src/crypto/evp/CMakeLists.txt b/src/crypto/evp/CMakeLists.txt
+index 000f0762..41c5327c 100644
+--- a/src/crypto/evp/CMakeLists.txt
++++ b/src/crypto/evp/CMakeLists.txt
+@@ -13,6 +13,8 @@ add_library(
+   p_dsa_asn1.c
+   p_ec.c
+   p_ec_asn1.c
++  p_hmac.c
++  p_hmac_asn1.c
+   p_rsa.c
+   p_rsa_asn1.c
+   pbkdf.c
+diff --git a/src/crypto/evp/digestsign.c b/src/crypto/evp/digestsign.c
+index 69c483ad..4f6b52ac 100644
+--- a/src/crypto/evp/digestsign.c
++++ b/src/crypto/evp/digestsign.c
+@@ -61,9 +61,17 @@
+ #include "../digest/internal.h"
+ 
+ 
++/* md_begin_digset is a callback from the |EVP_MD_CTX| code that is called when
++ * a new digest is begun. */
++static int md_begin_digest(EVP_MD_CTX *ctx) {
++  return EVP_PKEY_CTX_ctrl(ctx->pctx, -1, EVP_PKEY_OP_TYPE_SIG,
++                           EVP_PKEY_CTRL_DIGESTINIT, 0, ctx);
++}
++
+ static const struct evp_md_pctx_ops md_pctx_ops = {
+   EVP_PKEY_CTX_free,
+   EVP_PKEY_CTX_dup,
++  md_begin_digest,
+ };
+ 
+ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+@@ -83,11 +91,21 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
+   }
+ 
+   if (is_verify) {
+-    if (!EVP_PKEY_verify_init(ctx->pctx)) {
++    if (ctx->pctx->pmeth->verifyctx_init) {
++      if (!ctx->pctx->pmeth->verifyctx_init(ctx->pctx, ctx)) {
++        return 0;
++      }
++      ctx->pctx->operation = EVP_PKEY_OP_VERIFYCTX;
++    } else if (!EVP_PKEY_verify_init(ctx->pctx)) {
+       return 0;
+     }
+   } else {
+-    if (!EVP_PKEY_sign_init(ctx->pctx)) {
++    if (ctx->pctx->pmeth->signctx_init) {
++      if (!ctx->pctx->pmeth->signctx_init(ctx->pctx, ctx)) {
++        return 0;
++      }
++      ctx->pctx->operation = EVP_PKEY_OP_SIGNCTX;
++    } else if (!EVP_PKEY_sign_init(ctx->pctx)) {
+       return 0;
+     }
+   }
+@@ -123,37 +141,59 @@ int EVP_DigestVerifyUpdate(EVP_MD_CTX *ctx, const void *data, size_t len) {
+ 
+ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, uint8_t *out_sig,
+                         size_t *out_sig_len) {
++  int r = 0;
++  const int has_signctx = ctx->pctx->pmeth->signctx != NULL;
++
+   if (out_sig) {
+     EVP_MD_CTX tmp_ctx;
+-    int ret;
+     uint8_t md[EVP_MAX_MD_SIZE];
+     unsigned int mdlen;
+ 
+     EVP_MD_CTX_init(&tmp_ctx);
+-    ret = EVP_MD_CTX_copy_ex(&tmp_ctx, ctx) &&
+-          EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen) &&
+-          EVP_PKEY_sign(ctx->pctx, out_sig, out_sig_len, md, mdlen);
++    if (!EVP_MD_CTX_copy_ex(&tmp_ctx, ctx)) {
++      return 0;
++    }
++    if (has_signctx) {
++      r = tmp_ctx.pctx->pmeth->signctx(tmp_ctx.pctx, out_sig, out_sig_len, &tmp_ctx);
++    } else {
++      r = EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen);
++      if (r) {
++        r = EVP_PKEY_sign(ctx->pctx, out_sig, out_sig_len, md, mdlen);
++      }
++    }
+     EVP_MD_CTX_cleanup(&tmp_ctx);
+-
+-    return ret;
++    return r;
+   } else {
+-    size_t s = EVP_MD_size(ctx->digest);
+-    return EVP_PKEY_sign(ctx->pctx, out_sig, out_sig_len, NULL, s);
++    if (has_signctx) {
++      return ctx->pctx->pmeth->signctx(ctx->pctx, out_sig, out_sig_len, ctx);
++    } else {
++      size_t s = EVP_MD_size(ctx->digest);
++      return EVP_PKEY_sign(ctx->pctx, out_sig, out_sig_len, NULL, s);
++    }
+   }
+ }
+ 
+ int EVP_DigestVerifyFinal(EVP_MD_CTX *ctx, const uint8_t *sig,
+                           size_t sig_len) {
+   EVP_MD_CTX tmp_ctx;
+-  int ret;
+   uint8_t md[EVP_MAX_MD_SIZE];
++  int r;
+   unsigned int mdlen;
+ 
+   EVP_MD_CTX_init(&tmp_ctx);
+-  ret = EVP_MD_CTX_copy_ex(&tmp_ctx, ctx) &&
+-        EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen) &&
+-        EVP_PKEY_verify(ctx->pctx, sig, sig_len, md, mdlen);
++  if (!EVP_MD_CTX_copy_ex(&tmp_ctx, ctx)) {
++    return 0;
++  }
++  if (ctx->pctx->pmeth->verifyctx) {
++    r = tmp_ctx.pctx->pmeth->verifyctx(tmp_ctx.pctx, sig, sig_len, &tmp_ctx);
++  } else {
++    r = EVP_DigestFinal_ex(&tmp_ctx, md, &mdlen);
++    if (r) {
++      r = EVP_PKEY_verify(ctx->pctx, sig, sig_len, md, mdlen);
++    }
++  }
++
+   EVP_MD_CTX_cleanup(&tmp_ctx);
+ 
+-  return ret;
++  return r;
+ }
+diff --git a/src/crypto/evp/evp.c b/src/crypto/evp/evp.c
+index afe5c38a..2e6f84d0 100644
+--- a/src/crypto/evp/evp.c
++++ b/src/crypto/evp/evp.c
+@@ -71,7 +71,6 @@
+ #include "internal.h"
+ #include "../internal.h"
+ 
+-
+ EVP_PKEY *EVP_PKEY_new(void) {
+   EVP_PKEY *ret;
+ 
+@@ -201,6 +200,8 @@ const EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_find(ENGINE **pengine, int nid) {
+     case EVP_PKEY_RSA:
+     case EVP_PKEY_RSA2:
+       return &rsa_asn1_meth;
++    case EVP_PKEY_HMAC:
++      return &hmac_asn1_meth;
+     case EVP_PKEY_EC:
+       return &ec_asn1_meth;
+     case EVP_PKEY_DSA:
+@@ -218,6 +219,32 @@ int EVP_PKEY_type(int nid) {
+   return meth->pkey_id;
+ }
+ 
++EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *e, const uint8_t *mac_key,
++                               size_t mac_key_len) {
++  EVP_PKEY_CTX *mac_ctx = NULL;
++  EVP_PKEY *ret = NULL;
++
++  mac_ctx = EVP_PKEY_CTX_new_id(type, e);
++  if (!mac_ctx) {
++    return NULL;
++  }
++
++  if (!EVP_PKEY_keygen_init(mac_ctx) ||
++      !EVP_PKEY_CTX_ctrl(mac_ctx, -1, EVP_PKEY_OP_KEYGEN,
++                         EVP_PKEY_CTRL_SET_MAC_KEY, mac_key_len,
++                         (uint8_t *)mac_key) ||
++      !EVP_PKEY_keygen(mac_ctx, &ret)) {
++    ret = NULL;
++    goto merr;
++  }
++
++merr:
++  if (mac_ctx) {
++    EVP_PKEY_CTX_free(mac_ctx);
++  }
++  return ret;
++}
++
+ int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key) {
+   if (EVP_PKEY_assign_RSA(pkey, key)) {
+     RSA_up_ref(key);
+@@ -315,6 +342,8 @@ const EVP_PKEY_ASN1_METHOD *EVP_PKEY_asn1_find_str(ENGINE **pengine,
+                                                    size_t len) {
+   if (len == 3 && memcmp(name, "RSA", 3) == 0) {
+     return &rsa_asn1_meth;
++  } else if (len == 4 && memcmp(name, "HMAC", 4) == 0) {
++    return &hmac_asn1_meth;
+   } if (len == 2 && memcmp(name, "EC", 2) == 0) {
+     return &ec_asn1_meth;
+   } else if (len == 3 && memcmp(name, "DSA", 3) == 0) {
+diff --git a/src/crypto/evp/evp_ctx.c b/src/crypto/evp/evp_ctx.c
+index 9e038cd2..0973852e 100644
+--- a/src/crypto/evp/evp_ctx.c
++++ b/src/crypto/evp/evp_ctx.c
+@@ -65,9 +65,9 @@
+ 
+ #include "internal.h"
+ 
+-
+ static const EVP_PKEY_METHOD *const evp_methods[] = {
+   &rsa_pkey_meth,
++  &hmac_pkey_meth,
+   &ec_pkey_meth,
+ };
+ 
+diff --git a/src/crypto/evp/evp_test.cc b/src/crypto/evp/evp_test.cc
+index 7fedc152..4b5bb31f 100644
+--- a/src/crypto/evp/evp_test.cc
++++ b/src/crypto/evp/evp_test.cc
+@@ -80,10 +80,11 @@
+ #include "../test/scoped_types.h"
+ 
+ 
+-// evp_test dispatches between multiple test types. PrivateKey tests take a key
+-// name parameter and single block, decode it as a PEM private key, and save it
+-// under that key name. Decrypt, Sign, and Verify tests take a previously
+-// imported key name as parameter and test their respective operations.
++// evp_test dispatches between multiple test types. HMAC tests test the legacy
++// EVP_PKEY_HMAC API. PrivateKey tests take a key name parameter and single
++// block, decode it as a PEM private key, and save it under that key name.
++// Decrypt, Sign, and Verify tests take a previously imported key name as
++// parameter and test their respective operations.
+ 
+ static const EVP_MD *GetDigest(FileTest *t, const std::string &name) {
+   if (name == "MD5") {
+@@ -127,10 +128,54 @@ static bool ImportPrivateKey(FileTest *t, KeyMap *key_map) {
+   return true;
+ }
+ 
++static bool TestHMAC(FileTest *t) {
++  std::string digest_str;
++  if (!t->GetAttribute(&digest_str, "HMAC")) {
++    return false;
++  }
++  const EVP_MD *digest = GetDigest(t, digest_str);
++  if (digest == nullptr) {
++    return false;
++  }
++
++  std::vector<uint8_t> key, input, output;
++  if (!t->GetBytes(&key, "Key") ||
++      !t->GetBytes(&input, "Input") ||
++      !t->GetBytes(&output, "Output")) {
++    return false;
++  }
++
++  ScopedEVP_PKEY pkey(EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, nullptr,
++                                           bssl::vector_data(&key),
++                                           key.size()));
++  ScopedEVP_MD_CTX mctx;
++  if (!pkey ||
++      !EVP_DigestSignInit(mctx.get(), nullptr, digest, nullptr, pkey.get()) ||
++      !EVP_DigestSignUpdate(mctx.get(), bssl::vector_data(&input),
++                            input.size())) {
++    return false;
++  }
++
++  size_t len;
++  std::vector<uint8_t> actual;
++  if (!EVP_DigestSignFinal(mctx.get(), nullptr, &len)) {
++    return false;
++  }
++  actual.resize(len);
++  if (!EVP_DigestSignFinal(mctx.get(), bssl::vector_data(&actual), &len)) {
++    return false;
++  }
++  actual.resize(len);
++  return t->ExpectBytesEqual(bssl::vector_data(&output), output.size(),
++                             bssl::vector_data(&actual), actual.size());
++}
++
+ static bool TestEVP(FileTest *t, void *arg) {
+   KeyMap *key_map = reinterpret_cast<KeyMap*>(arg);
+   if (t->GetType() == "PrivateKey") {
+     return ImportPrivateKey(t, key_map);
++  } else if (t->GetType() == "HMAC") {
++    return TestHMAC(t);
+   }
+ 
+   int (*key_op_init)(EVP_PKEY_CTX *ctx);
+diff --git a/src/crypto/evp/internal.h b/src/crypto/evp/internal.h
+index aa52d535..762edd52 100644
+--- a/src/crypto/evp/internal.h
++++ b/src/crypto/evp/internal.h
+@@ -152,12 +152,15 @@ typedef int EVP_PKEY_gen_cb(EVP_PKEY_CTX *ctx);
+ #define EVP_PKEY_OP_SIGN (1 << 3)
+ #define EVP_PKEY_OP_VERIFY (1 << 4)
+ #define EVP_PKEY_OP_VERIFYRECOVER (1 << 5)
+-#define EVP_PKEY_OP_ENCRYPT (1 << 6)
+-#define EVP_PKEY_OP_DECRYPT (1 << 7)
+-#define EVP_PKEY_OP_DERIVE (1 << 8)
++#define EVP_PKEY_OP_SIGNCTX (1 << 6)
++#define EVP_PKEY_OP_VERIFYCTX (1 << 7)
++#define EVP_PKEY_OP_ENCRYPT (1 << 8)
++#define EVP_PKEY_OP_DECRYPT (1 << 9)
++#define EVP_PKEY_OP_DERIVE (1 << 10)
+ 
+ #define EVP_PKEY_OP_TYPE_SIG                                           \
+-  (EVP_PKEY_OP_SIGN | EVP_PKEY_OP_VERIFY | EVP_PKEY_OP_VERIFYRECOVER)
++  (EVP_PKEY_OP_SIGN | EVP_PKEY_OP_VERIFY | EVP_PKEY_OP_VERIFYRECOVER | \
++   EVP_PKEY_OP_SIGNCTX | EVP_PKEY_OP_VERIFYCTX)
+ 
+ #define EVP_PKEY_OP_TYPE_CRYPT (EVP_PKEY_OP_ENCRYPT | EVP_PKEY_OP_DECRYPT)
+ 
+@@ -177,8 +180,13 @@ typedef int EVP_PKEY_gen_cb(EVP_PKEY_CTX *ctx);
+ OPENSSL_EXPORT int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
+                                      int cmd, int p1, void *p2);
+ 
+-#define EVP_PKEY_CTRL_MD 1
+-#define EVP_PKEY_CTRL_GET_MD 2
++/* EVP_PKEY_CTRL_DIGESTINIT is an internal value. It's called by
++ * EVP_DigestInit_ex to signal the |EVP_PKEY| that a digest operation is
++ * starting.
++ *
++ * TODO(davidben): This is only needed to support the deprecated HMAC |EVP_PKEY|
++ * types. */
++#define EVP_PKEY_CTRL_DIGESTINIT 3
+ 
+ /* EVP_PKEY_CTRL_PEER_KEY is called with different values of |p1|:
+  *   0: Is called from |EVP_PKEY_derive_set_peer| and |p2| contains a peer key.
+@@ -189,12 +197,21 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
+  *      (EC)DH always return one in this case.
+  *   3: Is called with |p2| == NULL to set whether the peer's key was used.
+  *      (EC)DH always return one in this case. This was only used for GOST. */
+-#define EVP_PKEY_CTRL_PEER_KEY 3
++#define EVP_PKEY_CTRL_PEER_KEY 4
++
++/* EVP_PKEY_CTRL_SET_MAC_KEY sets a MAC key. For example, this can be done an
++ * |EVP_PKEY_CTX| prior to calling |EVP_PKEY_keygen| in order to generate an
++ * HMAC |EVP_PKEY| with the given key. It returns one on success and zero on
++ * error. */
++#define EVP_PKEY_CTRL_SET_MAC_KEY 5
+ 
+ /* EVP_PKEY_ALG_CTRL is the base value from which key-type specific ctrl
+  * commands are numbered. */
+ #define EVP_PKEY_ALG_CTRL 0x1000
+ 
++#define EVP_PKEY_CTRL_MD 1
++#define EVP_PKEY_CTRL_GET_MD 2
++
+ #define EVP_PKEY_CTRL_RSA_PADDING (EVP_PKEY_ALG_CTRL + 1)
+ #define EVP_PKEY_CTRL_GET_RSA_PADDING (EVP_PKEY_ALG_CTRL + 2)
+ #define EVP_PKEY_CTRL_RSA_PSS_SALTLEN (EVP_PKEY_ALG_CTRL + 3)
+@@ -249,6 +266,14 @@ struct evp_pkey_method_st {
+   int (*verify)(EVP_PKEY_CTX *ctx, const uint8_t *sig, size_t siglen,
+                 const uint8_t *tbs, size_t tbslen);
+ 
++  int (*signctx_init)(EVP_PKEY_CTX *ctx, EVP_MD_CTX *mctx);
++  int (*signctx)(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
++                 EVP_MD_CTX *mctx);
++
++  int (*verifyctx_init)(EVP_PKEY_CTX *ctx, EVP_MD_CTX *mctx);
++  int (*verifyctx)(EVP_PKEY_CTX *ctx, const unsigned char *sig, int siglen,
++                   EVP_MD_CTX *mctx);
++
+   int (*encrypt_init)(EVP_PKEY_CTX *ctx);
+   int (*encrypt)(EVP_PKEY_CTX *ctx, uint8_t *out, size_t *outlen,
+                  const uint8_t *in, size_t inlen);
+@@ -266,10 +291,11 @@ struct evp_pkey_method_st {
+ extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meth;
+ extern const EVP_PKEY_ASN1_METHOD ec_asn1_meth;
+ extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
++extern const EVP_PKEY_ASN1_METHOD hmac_asn1_meth;
+ 
+ extern const EVP_PKEY_METHOD rsa_pkey_meth;
+ extern const EVP_PKEY_METHOD ec_pkey_meth;
+-
++extern const EVP_PKEY_METHOD hmac_pkey_meth;
+ 
+ #if defined(__cplusplus)
+ }  /* extern C */
+diff --git a/src/crypto/evp/p_ec.c b/src/crypto/evp/p_ec.c
+index 77f213db..8b5033e1 100644
+--- a/src/crypto/evp/p_ec.c
++++ b/src/crypto/evp/p_ec.c
+@@ -216,7 +216,8 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
+       return 1;
+ 
+     case EVP_PKEY_CTRL_PEER_KEY:
+-      /* Default behaviour is OK */
++    /* Default behaviour is OK */
++    case EVP_PKEY_CTRL_DIGESTINIT:
+       return 1;
+ 
+     default:
+@@ -273,11 +274,12 @@ static int pkey_ec_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
+ }
+ 
+ const EVP_PKEY_METHOD ec_pkey_meth = {
+-    EVP_PKEY_EC,          0 /* flags */,        pkey_ec_init,
+-    pkey_ec_copy,         pkey_ec_cleanup,      0 /* paramgen_init */,
+-    pkey_ec_paramgen,     0 /* keygen_init */,  pkey_ec_keygen,
+-    0 /* sign_init */,    pkey_ec_sign,         0 /* verify_init */,
+-    pkey_ec_verify,       0 /* encrypt_init */, 0 /* encrypt */,
+-    0 /* decrypt_init */, 0 /* decrypt */,      0 /* derive_init */,
+-    pkey_ec_derive,       pkey_ec_ctrl,
++    EVP_PKEY_EC,            0 /* flags */,        pkey_ec_init,
++    pkey_ec_copy,           pkey_ec_cleanup,      0 /* paramgen_init */,
++    pkey_ec_paramgen,       0 /* keygen_init */,  pkey_ec_keygen,
++    0 /* sign_init */,      pkey_ec_sign,         0 /* verify_init */,
++    pkey_ec_verify,         0 /* signctx_init */, 0 /* signctx */,
++    0 /* verifyctx_init */, 0 /* verifyctx */,    0 /* encrypt_init */,
++    0 /* encrypt */,        0 /* decrypt_init */, 0 /* decrypt */,
++    0 /* derive_init */,    pkey_ec_derive,       pkey_ec_ctrl,
+ };
+diff --git a/src/crypto/evp/p_hmac.c b/src/crypto/evp/p_hmac.c
+new file mode 100644
+index 00000000..a4a15e57
+--- /dev/null
++++ b/src/crypto/evp/p_hmac.c
+@@ -0,0 +1,223 @@
++/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
++ * project 2007.
++ */
++/* ====================================================================
++ * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in
++ *    the documentation and/or other materials provided with the
++ *    distribution.
++ *
++ * 3. All advertising materials mentioning features or use of this
++ *    software must display the following acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
++ *
++ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
++ *    endorse or promote products derived from this software without
++ *    prior written permission. For written permission, please contact
++ *    licensing@OpenSSL.org.
++ *
++ * 5. Products derived from this software may not be called "OpenSSL"
++ *    nor may "OpenSSL" appear in their names without prior written
++ *    permission of the OpenSSL Project.
++ *
++ * 6. Redistributions of any form whatsoever must retain the following
++ *    acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
++ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
++ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
++ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
++ * OF THE POSSIBILITY OF SUCH DAMAGE.
++ * ====================================================================
++ *
++ * This product includes cryptographic software written by Eric Young
++ * (eay@cryptsoft.com).  This product includes software written by Tim
++ * Hudson (tjh@cryptsoft.com). */
++
++#include <openssl/evp.h>
++
++#include <string.h>
++
++#include <openssl/asn1.h>
++#include <openssl/err.h>
++#include <openssl/hmac.h>
++#include <openssl/mem.h>
++#include <openssl/obj.h>
++
++#include "internal.h"
++#include "../digest/internal.h"
++
++
++typedef struct {
++  const EVP_MD *md;       /* MD for HMAC use */
++  ASN1_OCTET_STRING ktmp; /* Temp storage for key */
++  HMAC_CTX ctx;
++} HMAC_PKEY_CTX;
++
++static int pkey_hmac_init(EVP_PKEY_CTX *ctx) {
++  HMAC_PKEY_CTX *hctx;
++  hctx = OPENSSL_malloc(sizeof(HMAC_PKEY_CTX));
++  if (!hctx) {
++    return 0;
++  }
++  memset(hctx, 0, sizeof(HMAC_PKEY_CTX));
++  hctx->ktmp.type = V_ASN1_OCTET_STRING;
++  HMAC_CTX_init(&hctx->ctx);
++
++  ctx->data = hctx;
++
++  return 1;
++}
++
++static int pkey_hmac_copy(EVP_PKEY_CTX *dst, EVP_PKEY_CTX *src) {
++  HMAC_PKEY_CTX *sctx, *dctx;
++  if (!pkey_hmac_init(dst)) {
++    return 0;
++  }
++  sctx = src->data;
++  dctx = dst->data;
++  dctx->md = sctx->md;
++  HMAC_CTX_init(&dctx->ctx);
++  if (!HMAC_CTX_copy_ex(&dctx->ctx, &sctx->ctx)) {
++    return 0;
++  }
++  if (sctx->ktmp.data) {
++    if (!ASN1_OCTET_STRING_set(&dctx->ktmp, sctx->ktmp.data,
++                               sctx->ktmp.length)) {
++      return 0;
++    }
++  }
++  return 1;
++}
++
++static void pkey_hmac_cleanup(EVP_PKEY_CTX *ctx) {
++  HMAC_PKEY_CTX *hctx = ctx->data;
++
++  if (hctx == NULL) {
++    return;
++  }
++
++  HMAC_CTX_cleanup(&hctx->ctx);
++  if (hctx->ktmp.data) {
++    if (hctx->ktmp.length) {
++      OPENSSL_cleanse(hctx->ktmp.data, hctx->ktmp.length);
++    }
++    OPENSSL_free(hctx->ktmp.data);
++    hctx->ktmp.data = NULL;
++  }
++  OPENSSL_free(hctx);
++}
++
++static int pkey_hmac_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
++  ASN1_OCTET_STRING *hkey = NULL;
++  HMAC_PKEY_CTX *hctx = ctx->data;
++
++  if (!hctx->ktmp.data) {
++    return 0;
++  }
++  hkey = ASN1_OCTET_STRING_dup(&hctx->ktmp);
++  if (!hkey) {
++    return 0;
++  }
++  EVP_PKEY_assign(pkey, EVP_PKEY_HMAC, hkey);
++
++  return 1;
++}
++
++static void int_update(EVP_MD_CTX *ctx, const void *data, size_t count) {
++  HMAC_PKEY_CTX *hctx = ctx->pctx->data;
++  HMAC_Update(&hctx->ctx, data, count);
++}
++
++static int hmac_signctx_init(EVP_PKEY_CTX *ctx, EVP_MD_CTX *mctx) {
++  /* |mctx| gets repurposed as a hook to call |HMAC_Update|. Suppress the
++   * automatic setting of |mctx->update| and the rest of its initialization. */
++  EVP_MD_CTX_set_flags(mctx, EVP_MD_CTX_FLAG_NO_INIT);
++  mctx->update = int_update;
++  return 1;
++}
++
++static int hmac_signctx(EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen,
++                        EVP_MD_CTX *mctx) {
++  unsigned int hlen;
++  HMAC_PKEY_CTX *hctx = ctx->data;
++  size_t md_size = EVP_MD_CTX_size(mctx);
++
++  if (!sig) {
++    *siglen = md_size;
++    return 1;
++  } else if (*siglen < md_size) {
++//    OPENSSL_PUT_ERROR(EVP, hmac_signctx, EVP_R_BUFFER_TOO_SMALL);
++    return 0;
++  }
++
++  if (!HMAC_Final(&hctx->ctx, sig, &hlen)) {
++    return 0;
++  }
++  *siglen = (size_t)hlen;
++  return 1;
++}
++
++static int pkey_hmac_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
++  HMAC_PKEY_CTX *hctx = ctx->data;
++  ASN1_OCTET_STRING *key;
++
++  switch (type) {
++    case EVP_PKEY_CTRL_SET_MAC_KEY:
++      if ((!p2 && p1 > 0) || (p1 < -1)) {
++        return 0;
++      }
++      if (!ASN1_OCTET_STRING_set(&hctx->ktmp, p2, p1)) {
++        return 0;
++      }
++      break;
++
++    case EVP_PKEY_CTRL_MD:
++      hctx->md = p2;
++      break;
++
++    case EVP_PKEY_CTRL_DIGESTINIT:
++      key = (ASN1_OCTET_STRING *)ctx->pkey->pkey.ptr;
++      if (!HMAC_Init_ex(&hctx->ctx, key->data, key->length, hctx->md,
++                        ctx->engine)) {
++        return 0;
++      }
++      break;
++
++    default:
++  //    OPENSSL_PUT_ERROR(EVP, pkey_hmac_ctrl, EVP_R_COMMAND_NOT_SUPPORTED);
++      return 0;
++  }
++  return 1;
++}
++
++const EVP_PKEY_METHOD hmac_pkey_meth = {
++    EVP_PKEY_HMAC,          0 /* flags */,        pkey_hmac_init,
++    pkey_hmac_copy,         pkey_hmac_cleanup,    0 /* paramgen_init */,
++    0 /* paramgen */,       0 /* keygen_init */,  pkey_hmac_keygen,
++    0 /* sign_init */,      0 /* sign */,         0 /* verify_init */,
++    0 /* verify */,         hmac_signctx_init,    hmac_signctx,
++    0 /* verifyctx_init */, 0 /* verifyctx */,    0 /* encrypt_init */,
++    0 /* encrypt */,        0 /* decrypt_init */, 0 /* decrypt */,
++    0 /* derive_init */,    0 /* derive */,       pkey_hmac_ctrl,
++    0,
++};
+diff --git a/src/crypto/evp/p_hmac_asn1.c b/src/crypto/evp/p_hmac_asn1.c
+new file mode 100644
+index 00000000..8aa66764
+--- /dev/null
++++ b/src/crypto/evp/p_hmac_asn1.c
+@@ -0,0 +1,89 @@
++/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
++ * project 2007.
++ */
++/* ====================================================================
++ * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer. 
++ *
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in
++ *    the documentation and/or other materials provided with the
++ *    distribution.
++ *
++ * 3. All advertising materials mentioning features or use of this
++ *    software must display the following acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
++ *
++ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
++ *    endorse or promote products derived from this software without
++ *    prior written permission. For written permission, please contact
++ *    licensing@OpenSSL.org.
++ *
++ * 5. Products derived from this software may not be called "OpenSSL"
++ *    nor may "OpenSSL" appear in their names without prior written
++ *    permission of the OpenSSL Project.
++ *
++ * 6. Redistributions of any form whatsoever must retain the following
++ *    acknowledgment:
++ *    "This product includes software developed by the OpenSSL Project
++ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
++ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
++ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
++ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
++ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
++ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
++ * OF THE POSSIBILITY OF SUCH DAMAGE.
++ * ====================================================================
++ *
++ * This product includes cryptographic software written by Eric Young
++ * (eay@cryptsoft.com).  This product includes software written by Tim
++ * Hudson (tjh@cryptsoft.com). */
++
++#include <openssl/evp.h>
++
++#include <openssl/asn1.h>
++#include <openssl/digest.h>
++#include <openssl/mem.h>
++#include <openssl/obj.h>
++
++#include "internal.h"
++
++
++static int hmac_size(const EVP_PKEY *pkey) { return EVP_MAX_MD_SIZE; }
++
++static void hmac_key_free(EVP_PKEY *pkey) {
++  ASN1_OCTET_STRING *os = (ASN1_OCTET_STRING *)pkey->pkey.ptr;
++  if (os) {
++    if (os->data) {
++      OPENSSL_cleanse(os->data, os->length);
++    }
++    ASN1_OCTET_STRING_free(os);
++  }
++}
++
++const EVP_PKEY_ASN1_METHOD hmac_asn1_meth = {
++    EVP_PKEY_HMAC,       EVP_PKEY_HMAC,         0 /* flags */,
++    "HMAC",              "OpenSSL HMAC method", 0 /* pub_decode */,
++    0 /* pub_encode */,  0 /* pub_cmp */,       0 /* pub_print */,
++    0 /*priv_decode */,  0 /* priv_encode */,   0 /* priv_print */,
++    0 /* pkey_opaque */, 0 /* pkey_supports_digest */,
++    hmac_size,           0 /* pkey_bits */,     0 /* param_decode */,
++    0 /* param_encode*/, 0 /* param_missing*/,  0 /* param_copy*/,
++    0 /* param_cmp*/,    0 /* param_print*/,    0 /* sig_print*/,
++    hmac_key_free,       0 /* old_priv_decode */,
++    0 /* old_priv_encode */
++};
+diff --git a/src/crypto/evp/p_rsa.c b/src/crypto/evp/p_rsa.c
+index 895d3513..8a86c690 100644
+--- a/src/crypto/evp/p_rsa.c
++++ b/src/crypto/evp/p_rsa.c
+@@ -472,6 +472,9 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
+       CBS_init((CBS *)p2, rctx->oaep_label, rctx->oaep_labellen);
+       return 1;
+ 
++    case EVP_PKEY_CTRL_DIGESTINIT:
++      return 1;
++
+     default:
+       OPENSSL_PUT_ERROR(EVP, EVP_R_COMMAND_NOT_SUPPORTED);
+       return 0;
+@@ -503,13 +506,14 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
+ }
+ 
+ const EVP_PKEY_METHOD rsa_pkey_meth = {
+-    EVP_PKEY_RSA,         0 /* flags */,        pkey_rsa_init,
+-    pkey_rsa_copy,        pkey_rsa_cleanup,     0 /* paramgen_init */,
+-    0 /* paramgen */,     0 /* keygen_init */,  pkey_rsa_keygen,
+-    0 /* sign_init */,    pkey_rsa_sign,        0 /* verify_init */,
+-    pkey_rsa_verify,      0 /* encrypt_init */, pkey_rsa_encrypt,
+-    0 /* decrypt_init */, pkey_rsa_decrypt,     0 /* derive_init */,
+-    0 /* derive */,       pkey_rsa_ctrl,
++    EVP_PKEY_RSA,           0 /* flags */,        pkey_rsa_init,
++    pkey_rsa_copy,          pkey_rsa_cleanup,     0 /* paramgen_init */,
++    0 /* paramgen */,       0 /* keygen_init */,  pkey_rsa_keygen,
++    0 /* sign_init */,      pkey_rsa_sign,        0 /* verify_init */,
++    pkey_rsa_verify,        0 /* signctx_init */, 0 /* signctx */,
++    0 /* verifyctx_init */, 0 /* verifyctx */,    0 /* encrypt_init */,
++    pkey_rsa_encrypt,       0 /* decrypt_init */, pkey_rsa_decrypt,
++    0 /* derive_init */,    0 /* derive */,       pkey_rsa_ctrl,
+ };
+ 
+ int EVP_PKEY_CTX_set_rsa_padding(EVP_PKEY_CTX *ctx, int padding) {
+diff --git a/src/crypto/hmac/hmac_tests.txt b/src/crypto/hmac/hmac_tests.txt
+index 53f3f8f9..012f5939 100644
+--- a/src/crypto/hmac/hmac_tests.txt
++++ b/src/crypto/hmac/hmac_tests.txt
+@@ -1,3 +1,6 @@
++# This test file is shared between evp_test and hmac_test, to test the legacy
++# EVP_PKEY_HMAC API.
++
+ HMAC = MD5
+ # Note: The empty key results in passing NULL to HMAC_Init_ex, so this tests
+ # that HMAC_CTX and HMAC treat NULL as the empty key initially.
+diff --git a/src/include/openssl/digest.h b/src/include/openssl/digest.h
+index 80028efd..615eb63f 100644
+--- a/src/include/openssl/digest.h
++++ b/src/include/openssl/digest.h
+@@ -235,9 +235,15 @@ struct evp_md_pctx_ops;
+ struct env_md_ctx_st {
+   /* digest is the underlying digest function, or NULL if not set. */
+   const EVP_MD *digest;
++  /* flags is the OR of a number of |EVP_MD_CTX_FLAG_*| values. */
++  uint32_t flags;
+   /* md_data points to a block of memory that contains the hash-specific
+    * context. */
+   void *md_data;
++  /* update is usually copied from |digest->update| but can differ in some
++   * cases, i.e. HMAC.
++   * TODO(davidben): Remove this hook once |EVP_PKEY_HMAC| is gone. */
++  void (*update)(EVP_MD_CTX *ctx, const void *data, size_t count);
+ 
+   /* pctx is an opaque (at this layer) pointer to additional context that
+    * EVP_PKEY functions may store in this object. */
+diff --git a/src/include/openssl/evp.h b/src/include/openssl/evp.h
+index be2ea332..81030974 100644
+--- a/src/include/openssl/evp.h
++++ b/src/include/openssl/evp.h
+@@ -137,6 +137,14 @@ OPENSSL_EXPORT int EVP_PKEY_id(const EVP_PKEY *pkey);
+  * |EVP_PKEY_RSA2| will be turned into |EVP_PKEY_RSA|. */
+ OPENSSL_EXPORT int EVP_PKEY_type(int nid);
+ 
++/* Deprecated: EVP_PKEY_new_mac_key allocates a fresh |EVP_PKEY| of the given
++ * type (e.g. |EVP_PKEY_HMAC|), sets |mac_key| as the MAC key and "generates" a
++ * new key, suitable for signing. It returns the fresh |EVP_PKEY|, or NULL on
++ * error. Use |HMAC_CTX| directly instead. */
++OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *engine,
++                                              const uint8_t *mac_key,
++                                              size_t mac_key_len);
++
+ 
+ /* Getting and setting concrete public key types.
+  *
+@@ -169,6 +177,9 @@ OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
+ #define EVP_PKEY_DSA NID_dsa
+ #define EVP_PKEY_EC NID_X9_62_id_ecPublicKey
+ 
++/* Deprecated: Use |HMAC_CTX| directly instead. */
++#define EVP_PKEY_HMAC NID_hmac
++
+ /* EVP_PKEY_assign sets the underlying key of |pkey| to |key|, which must be of
+  * the given type. The |type| argument should be one of the |EVP_PKEY_*|
+  * values. */
+diff --git a/src/util/all_tests.json b/src/util/all_tests.json
+index c6217997..be68db2e 100644
+--- a/src/util/all_tests.json
++++ b/src/util/all_tests.json
+@@ -42,6 +42,7 @@
+ 	["crypto/err/err_test"],
+ 	["crypto/evp/evp_extra_test"],
+ 	["crypto/evp/evp_test", "crypto/evp/evp_tests.txt"],
++	["crypto/evp/evp_test", "crypto/hmac/hmac_tests.txt"],
+ 	["crypto/evp/pbkdf_test"],
+ 	["crypto/hkdf/hkdf_test"],
+ 	["crypto/hmac/hmac_test", "crypto/hmac/hmac_tests.txt"],
+-- 
+2.17.1
+
