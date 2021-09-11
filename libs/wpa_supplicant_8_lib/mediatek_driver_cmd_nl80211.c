@@ -11,7 +11,7 @@
  */
 #include "includes.h"
 #include <linux/wireless.h>
-#include "netlink/genl/genl.h"
+#include <netlink/genl/genl.h>
 
 #include "common.h"
 #include "driver_nl80211.h"

@@ -38,7 +38,6 @@ ifdef CONFIG_ANDROID_LOG
 L_CFLAGS += -DCONFIG_ANDROID_LOG
 endif
 
-WPA_SUPPL_DIR_INCLUDE += external/libnl/include
 WPA_SRC_FILE += mediatek_driver_cmd_nl80211.c
 
 WPA_SUPPL_DIR_INCLUDE = \
@@ -58,6 +57,12 @@ LOCAL_MODULE_OWNER := mtk
 LOCAL_SHARED_LIBRARIES := libc libcutils
 LOCAL_CFLAGS := $(L_CFLAGS)
 LOCAL_SRC_FILES := $(WPA_SRC_FILE)
-LOCAL_C_INCLUDES := $(WPA_SUPPL_DIR_INCLUDE)
+LOCAL_C_INCLUDES := \
+	$(TOP)/external/libnl/include \
+	$(TOP)/external/wpa_supplicant_8/src \
+	$(TOP)/external/wpa_supplicant_8/src/drivers \
+        $(TOP)/external/wpa_supplicant_8/src/utils \
+        $(TOP)/external/wpa_supplicant_8/wpa_supplicant
+
 include $(BUILD_STATIC_LIBRARY)
 ########################
