@@ -169,10 +169,12 @@ PRODUCT_COPY_FILES += \
 
 PRODUCT_COPY_FILES += \
 	$(DEVICE_PATH)/configs/media/media_codecs.xml:system/etc/media_codecs.xml \
+	$(DEVICE_PATH)/configs/media/media_codecs_mt6795mm.xml:system/etc/media_codecs_mt6795mm.xml \
 	$(DEVICE_PATH)/configs/media/media_codecs.xml:system/etc/permissions/media_codecs.xml \
 	$(DEVICE_PATH)/configs/media/media_codecs_ffmpeg.xml:system/etc/media_codecs_ffmpeg.xml \
 	$(DEVICE_PATH)/configs/media/media_codecs_mediatek_audio.xml:system/etc/media_codecs_mediatek_audio.xml\
 	$(DEVICE_PATH)/configs/media/media_codecs_mediatek_video.xml:system/etc/media_codecs_mediatek_video.xml \
+	$(DEVICE_PATH)/configs/media/media_codecs_mediatek_video_mt6795mm.xml:system/etc/media_codecs_mediatek_video_mt6795mm.xml \
 	$(DEVICE_PATH)/configs/media/media_codecs_performance.xml:system/etc/media_codecs_performance.xml \
 	$(DEVICE_PATH)/configs/media/media_profiles.xml:system/etc/media_profiles.xml \
 	$(DEVICE_PATH)/configs/mtk_clear_motion.cfg:system/etc/mtk_clear_motion.cfg
