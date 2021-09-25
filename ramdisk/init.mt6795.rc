@@ -1,36 +1,20 @@
 # MTK platform .rc configure
 
 import init.project.rc
-
-
-
 import init.volte.rc
 import init.mal.rc
 import init.trustonic.rc
+import init.common_svc.rc
 
-import init.ssd.rc
+# init.modem.rc must be the LAST rc file because vold.post_fs_data_done is set in it
 import init.modem.rc
-
-on late-fs
-    # boot time fs tune
-    write /sys/block/mmcblk0/queue/iostats 0
-    write /sys/block/mmcblk0/queue/iosched/slice_idle 0
-    write /sys/block/mmcblk0/queue/read_ahead_kb 2048
-    write /sys/block/mmcblk0/queue/nr_requests 256
+# *** DO NOT import the new rc file after this line ***
 
 on early-init
     mount debugfs debugfs /sys/kernel/debug
     chmod 0755 /sys/kernel/debug
 
 on init
-
-export LD_PRELOAD "libmtk_symbols.so"
-
-    # For debugging:
-    setprop ro.secure=0
-    setprop ro.adb.secure=0
-    setprop ro.debuggable=1
-
     # Support legacy paths
     symlink /sdcard /mnt/sdcard
 
@@ -45,7 +29,6 @@ export LD_PRELOAD "libmtk_symbols.so"
     chmod 0664 /proc/mtk_battery_cmd/discharging_cmd
     chmod 0664 /proc/mtk_battery_cmd/battery_cmd
 
-    export USBOTG_STORAGE /storage/usbotg
     mkdir /protect_f 0771 system system
     mkdir /protect_s 0771 system system
     mkdir /system
@@ -68,10 +51,6 @@ export LD_PRELOAD "libmtk_symbols.so"
     chown root system /proc/lk_env
     chmod 0660 /proc/lk_env
 
-#usbotg
-    mkdir /mnt/media_rw/usbotg 0700 media_rw media_rw
-    mkdir /storage/usbotg 0700 root root
-
 # increase sysctl_rmem_max and sysctl_wmem_max values to 2M
     write /proc/sys/net/core/wmem_max 2097152
     write /proc/sys/net/core/rmem_max 2097152
@@ -79,7 +58,7 @@ export LD_PRELOAD "libmtk_symbols.so"
 # mount different fs start
 
 on charger
-    mount ext4 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system /system ro
+    mount ext4 /dev/block/platform/mtk-msdc.0/11230000.MSDC0/by-name/system /system ro wait
     start fuelgauged
     start kpoc_charger
     start servicemanager
@@ -116,8 +95,6 @@ on post-fs
 
     chown system system /protect_s
     chmod 0770 /protect_s
-    mkdir /protect_s/properties 0770 system system
-
     # once everything is setup, no need to modify /
     mount rootfs rootfs / ro remount
 
@@ -176,11 +153,12 @@ on post-fs-data
     mkdir /data/nvram 0771 root system
     mkdir /data/nvram/media 0771 media audio
 
-    # mxg2320
-    mkdir /data/mxg2320 0770 root system
+	# mxg2320
+	mkdir /data/mxg2320 0770 root system
 
-    # mmc3524x
-    mkdir /data/mmc3524x 0770 root system
+	# mmc3524x
+	mkdir /data/mmc3524x 0770 root system
+
     chmod 0660 /data/misc/wifi/p2p_supplicant.conf
 
     #give system access to rfkill device node
@@ -194,7 +172,7 @@ on post-fs-data
     # GPS
     mkdir /data/gps_mnl 0771 gps system
     mkdir /data/misc/gps 0770 gps system
-    
+
     # Smartwake
     chown system system /sys/devices/soc/soc:touch@/smartwake_active
     chown system system /sys/devices/soc/soc:touch@/wakeup_gesture
@@ -255,9 +233,9 @@ on post-fs-data
 
     # M4U
     #insmod /system/lib/modules/m4u.ko
-    mknod /dev/M4U_device c 188 0
-    chmod 0444 /dev/M4U_device
-    chown system media /dev/M4U_device
+    #mknod /dev/M4U_device c 188 0
+    #chmod 0444 /dev/M4U_device
+    #chown system media /dev/M4U_device
 
     #set mlock limit to infinate (for m4u operation)
     setrlimit 8 -1 -1
@@ -355,7 +333,7 @@ on post-fs-data
     #Accdet
     chown root radio /sys/devices/platform/Accdet_Driver/driver/accdet_call_state
     #VideoCodec
-    chmod 0666 /dev/Vcodec
+    chmod 0660 /dev/Vcodec
     chown media system /dev/Vcodec
 
     #MJC
@@ -489,11 +467,11 @@ on post-fs-data
     chmod 0660 /dev/mtk_disp_mgr
     chown system graphics /dev/mtk_disp_mgr
 
-    chmod 0660 /sys/devices/platform/mtk_disp_mgr.0/rgb
-    chown system system /sys/devices/platform/mtk_disp_mgr.0/rgb
-
     chmod 0660 /dev/mtkfb_vsync
     chown system graphics /dev/mtkfb_vsync
+
+    chmod 0660 /sys/devices/platform/mtk_disp_mgr.0/rgb
+    chown system system /sys/devices/platform/mtk_disp_mgr.0/rgb
 
     #Camera
     chmod 0660 /dev/camera-sysram
@@ -509,6 +487,8 @@ on post-fs-data
     chmod 0660 /dev/CAM_CAL_DRV_OFILM
     chmod 0660 /dev/CAM_CAL_DRV_3L8
     chmod 0660 /dev/CAM_CAL_DRV_3L9
+
+
     chmod 0660 /dev/LC898122AF
     chmod 0660 /dev/LC898122OFILMAF
     chmod 0660 /dev/BU6429AF
@@ -527,6 +507,7 @@ on post-fs-data
     chown system camera /dev/CAM_CAL_DRV_OFILM
     chown system camera /dev/CAM_CAL_DRV_3L8
     chown system camera /dev/CAM_CAL_DRV_3L9
+
     chown system camera /dev/LC898122AF
     chown system camera /dev/LC898122OFILMAF
     chown system camera /dev/BU6429AF
@@ -548,7 +529,7 @@ on post-fs-data
     chown media media /sys/bus/platform/drivers/mem_bw_ctrl/concurrency_scenario
 
     # SMI
-    chmod 0666 /dev/MTK_SMI
+    chmod 0660 /dev/MTK_SMI
     chown media media /dev/MTK_SMI
 
     # RRC
@@ -597,9 +578,9 @@ on post-fs-data
     # Recycle stuffs
     exec /system/bin/rm -f /cache/.ipoh.img
 
-	#Thermal
-	mkdir /data/.tp/ 0775 system system
-
+	#Thermal	
+	mkdir /data/.tp/ 0775 system system 
+	
 # End of adding by MTK drivers
 # -----------------------
 
@@ -626,8 +607,6 @@ on boot
 	  chmod 0660 /sys/power/autosleep
     chown system radio /sys/class/leds/lcd-backlight/brightness
     chmod 0664 /sys/class/leds/lcd-backlight/brightness
-
-
 
     chown system system /sys/devices/system/cpu/cpufreq/interactive/timer_rate
     chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/timer_rate
@@ -659,7 +638,7 @@ on boot
     chmod 0660 /d/ged/hal/custom_boost_gpu_freq
     chown system system /d/ged/hal/custom_upbound_gpu_freq
     chmod 0660 /d/ged/hal/custom_upbound_gpu_freq
-
+        
 # Smartbook Handler Framework
     chown system system /sys/power/sb_state
     chmod 0660 /sys/power/sb_state
@@ -772,13 +751,6 @@ on boot
     chmod 0660 /dev/ttyGS3
     chown system radio /dev/ttyGS3
 
-on property:sys.boot_completed=1
-    # end boot time fs tune
-    write /sys/block/mmcblk0/queue/read_ahead_kb 128
-    write /sys/block/mmcblk0/queue/nr_requests 128
-    write /sys/block/mmcblk0/queue/iostats 1
-
-
 on property:vold.decrypt=trigger_reset_main
     start stop_modem
     setprop service.nvram_init 0
@@ -796,8 +768,9 @@ on property:vold.decrypt=trigger_restart_framework
     start start_modem
     start msensord
     start permission_check
+    start leuirecovery
     write /proc/bootprof "trigger_restart_framework"
-
+		
 on property:vold.decrypt=trigger_shutdown_framework
     start stop_modem
     start swapoff_action
@@ -879,6 +852,22 @@ service nvram_daemon /system/bin/nvram_daemon
     group system
     oneshot
 
+#nvram_write start 
+service nvram_write /system/bin/nvram_write
+    class main
+    user root
+    oneshot
+#nvram_write end 
+
+service sys_reboot_write /system/bin/sys_reboot_write
+    class main
+    user root
+    disabled
+    oneshot
+
+on property:sys.server.killed=true
+    start sys_reboot_write
+
 service atci_service /system/bin/atci_service
     class core
     socket atci-service stream 660 radio system
@@ -920,6 +909,11 @@ service audio-daemon /system/bin/audiocmdservice_atci
 
 service pq /system/bin/pq
     class core
+    user system
+    group system graphics
+
+service aal /system/bin/aal
+    class main
     user system
     group system graphics
 
@@ -1214,9 +1208,9 @@ service emdlogger6 /system/bin/emdlogger6
 #sensor service (begin)
 #
 
-service msensord /system/bin/msensord
-    class main
-    oneshot
+#service msensord /system/bin/msensord
+    #class main
+    #oneshot
 
 service s62xd /system/bin/s62xd
     disabled
@@ -1230,10 +1224,11 @@ service ami304d /system/bin/ami304d
     class main
 
 service memsicd /system/bin/memsicd
-    disabled
+    #disabled
     user system
     group system
     class main
+    #oneshot
 
 service memsicd3416x /system/bin/memsicd3416x
     disabled
@@ -1258,10 +1253,12 @@ service akmd09911 /system/bin/akmd09911
     user system
     group system
     class main
+
 service mxg2320d /system/bin/mxg2320d
     user system
     group system
     class main
+    ##disabled
 
 service bmm050d /system/bin/bmm050d
     disabled
@@ -1418,3 +1415,27 @@ service guiext-server /system/bin/guiext-server
 
 service kpoc_charger /system/bin/kpoc_charger
     class charger
+
+# Program binary service
+service program_binary /system/bin/program_binary_service
+    class late_start
+    user system
+    group graphics
+    oneshot
+
+# leeco add leuirecovery
+service leuirecovery /system/bin/leuirecovery
+    class main
+    user root system
+    group root system sdcard_rw media_rw
+    disabled
+    oneshot
+
+# Begin Lebugreport
+service Lebugreport /system/bin/dumpstate -d -L -q \
+    -o /data/data/com.android.shell/files/bugreports/bugreport
+    class main
+    disabled
+    oneshot
+# End Lebugreport
+
