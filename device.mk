@@ -252,12 +252,6 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
 	$(DEVICE_PATH)/configs/init/mediaserver.rc:system/etc/init/mediaserver.rc
 
-PRODUCT_COPY_FILES += \
-	$(DEVICE_PATH)/configs/hostapd/hostapd_default.conf:system/etc/hostapd/hostapd_default.conf \
-	$(DEVICE_PATH)/configs/hostapd/hostapd.accept:system/etc/hostapd/hostapd.accept \
-	$(DEVICE_PATH)/configs/hostapd/hostapd.deny:system/etc/hostapd/hostapd.deny
-
-
 # MTK Helpers
 PRODUCT_PACKAGES += \
 	libccci_util \
