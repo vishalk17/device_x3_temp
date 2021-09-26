@@ -21,6 +21,10 @@ PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 # Recovery allowed devices
 TARGET_OTA_ASSERT_DEVICE := x3,X500,X507,X509,X3,x500,x507,x509,X502,x502
 
+# PRODUCT_BOOT_JARS
+PRODUCT_BOOT_JARS += \
+	dolby_ds1
+
 # Power
 PRODUCT_PACKAGES += \
 	power.default \
