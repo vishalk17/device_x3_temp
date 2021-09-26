@@ -234,7 +234,6 @@ PRODUCT_COPY_FILES += \
 
 PRODUCT_COPY_FILES += \
 	$(DEVICE_PATH)/configs/slp_conf:system/etc/slp_conf \
-	$(DEVICE_PATH)/configs/gps/gps.conf:system/etc/gps.conf \
 	$(DEVICE_PATH)/configs/clatd.conf:system/etc/clatd.conf \
 	$(DEVICE_PATH)/configs/custom.conf:system/etc/custom.conf \
 	$(DEVICE_PATH)/configs/mtklog-config.prop:system/etc/mtklog-config.prop \
