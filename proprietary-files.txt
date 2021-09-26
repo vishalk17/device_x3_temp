@@ -298,14 +298,13 @@ bin/kpoc_charger
 # lib/hw
 lib/hw/lights.mt6795.so
 lib/hw/fingerprint.default.so
-lib/hw/hwcomposer.mt6795.so
+#lib/hw/hwcomposer.mt6795.so #skip it. taken from eui17s. perhaps system wont boot. some changes at kernel source are unknown which were done by leeco and updated source is also not released by them.
 lib/hw/gatekeeper.mt6795.so
 lib/hw/mmsdk.mt6795.so
 lib/hw/memtrack.mt6795.so
 lib/hw/sensors.mt6795.so
 lib/hw/camera.mt6795.so
 lib/hw/keystore.mt6795.so
-lib/hw/camera.default.so
 #
 
 #
@@ -546,14 +545,13 @@ lib/libnvram_sec.so
 # lib64/hw
 lib64/hw/lights.mt6795.so
 lib64/hw/fingerprint.default.so
-lib64/hw/hwcomposer.mt6795.so
+#lib64/hw/hwcomposer.mt6795.so #skip it. taken from eui17s. perhaps system wont boot. some changes at kernel source are unknown which were done by leeco and updated source is also not released by them.
 lib64/hw/gatekeeper.mt6795.so
 lib64/hw/mmsdk.mt6795.so
 lib64/hw/memtrack.mt6795.so
 lib64/hw/sensors.mt6795.so
 lib64/hw/camera.mt6795.so
 lib64/hw/keystore.mt6795.so
-lib64/hw/camera.default.so
 #
 
 # lib64/drm
