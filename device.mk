@@ -246,7 +246,7 @@ PRODUCT_COPY_FILES += \
 	$(DEVICE_PATH)/configs/perfservscntbl.txt:system/etc/perfservscntbl.txt
 
 PRODUCT_COPY_FILES += \
-	$(DEVICE_PATH)/configs/agps_profiles_conf2.xml:system/etc/agps_profiles_conf2.xml
+	$(DEVICE_PATH)/configs/agps_profiles_conf2.xml:system/vendor/etc/agps_profiles_conf2.xml
         $(DEVICE_PATH)/configs/gps/gps.conf:system/etc/gps.conf
 
 PRODUCT_COPY_FILES += \
