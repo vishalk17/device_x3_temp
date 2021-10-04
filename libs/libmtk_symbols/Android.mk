@@ -14,10 +14,9 @@ LOCAL_SRC_FILES := \
 
 # only for 32bit libraries
 LOCAL_SRC_FILES_32 := mtk_string.cpp
-LOCAL_SRC_FILES_32 += mtk_wvm32.cpp
+LOCAL_SRC_FILES := mtk_wvm.cpp
 # only for 64bit libraries
 LOCAL_SRC_FILES_64 := mtk_parcel.cpp
-LOCAL_SRC_FILES_64 += mtk_wvm64.cpp
 
 
 LOCAL_SHARED_LIBRARIES := libcutils libbinder libutils liblog libgui libui libicuuc libicui18n libcrypto libstagefright_foundation libssl
