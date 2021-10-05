@@ -50,25 +50,6 @@ PRODUCT_PACKAGES += \
 	libnl_2 \
 	com.android.future.usb.accessory
 
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
-	ro.allow.mock.location=0 \
-	ro.secure=0 \
-	ro.adb.secure=0 \
-	ro.debuggable=1 \
-	ro.zygote=zygote64_32 \
-	ro.dalvik.vm.native.bridge=0 \
-	persist.sys.usb.config=mtp \
-	persist.debug.xlog.enable=0 \
-	camera.disable_zsl_mode=1
-
-ifeq (lineage_x3,$(TARGET_PRODUCT))	#this is included only in lineage atm as some other roms have issue with this
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
-	dalvik.vm.dex2oat-Xms=64m \
-	dalvik.vm.dex2oat-Xmx=64m \
-	dalvik.vm.image-dex2oat-Xms=64m \
-	dalvik.vm.image-dex2oat-Xmx=512m
-endif
-
 # Audio
 PRODUCT_PACKAGES += \
 	audio.a2dp.default \
