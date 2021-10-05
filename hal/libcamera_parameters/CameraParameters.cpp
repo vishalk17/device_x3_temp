@@ -93,8 +93,6 @@ const char CameraParameters::KEY_VIDEO_STABILIZATION[] = "video-stabilization";
 const char CameraParameters::KEY_VIDEO_STABILIZATION_SUPPORTED[] = "video-stabilization-supported";
 const char CameraParameters::KEY_LIGHTFX[] = "light-fx";
 // for MTK
-const char CameraParameters::KEY_SNAPSHOT_PICTURE_FLIP[] = "snapshot-picture-filp";
-
 const char CameraParameters::TRUE[] = "true";
 const char CameraParameters::FALSE[] = "false";
 const char CameraParameters::FOCUS_DISTANCE_INFINITY[] = "Infinity";
@@ -132,8 +130,6 @@ const char CameraParameters::FLASH_MODE_AUTO[] = "auto";
 const char CameraParameters::FLASH_MODE_ON[] = "on";
 const char CameraParameters::FLASH_MODE_RED_EYE[] = "red-eye";
 const char CameraParameters::FLASH_MODE_TORCH[] = "torch";
-const char CameraParameters::FLASH_MODE_TORCH1[] = "torch1";
-const char CameraParameters::FLASH_MODE_TORCH2[] = "torch2";
 
 // Values for scene mode settings.
 const char CameraParameters::SCENE_MODE_AUTO[] = "auto";
