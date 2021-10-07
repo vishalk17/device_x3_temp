@@ -196,5 +196,4 @@ BOARD_BLUE_LED_PATH := "/sys/class/leds/blue"
 
 # libshim
 LINKER_FORCED_SHIM_LIBS += \
-    /system/vendor/lib/libwvm.so|libshim_wvm.so \
-    /system/lib/libMtkOmxVenc.so|libshim_ui.so
+    /system/vendor/lib/libwvm.so|libshim_wvm.so
