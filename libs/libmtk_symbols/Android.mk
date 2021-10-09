@@ -8,7 +8,6 @@ LOCAL_SRC_FILES := \
   mtk_gui.cpp \
   mtk_omx.cpp \
   mtk_ui.cpp \
-  mtk_wvm.cpp \
   mtkaudio.cpp \
   mtkcamhack.cpp \
   ssl.c
